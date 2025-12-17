@@ -1,0 +1,1 @@
+Hello World! This is doc1 which is my first doc edited in vim.
