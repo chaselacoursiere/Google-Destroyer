@@ -4,12 +4,15 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <sys/poll.h>
 
 int main() {
 
-	int status, s;
-	char ipstr[INET6_ADDRSTRLEN];
+	int status, s, byte_count;
+	char ipstr[INET6_ADDRSTRLEN], buf[4096];
+	char *html_request = "GET /index.html HTTP/1.1\r\nHost: www.sjoa.org\r\n\r\n";
 	struct addrinfo hints, *servinfo, *p;
+	struct pollfd s_poll[1];
 
 	memset(&hints, 0, sizeof hints); // makes sure hints is empty
 	hints.ai_family = AF_UNSPEC; // dont care ip4 or ip6
@@ -17,7 +20,7 @@ int main() {
 	hints.ai_flags = AI_PASSIVE; //fill in my IP for me
 				 
 	
-	if ((status = getaddrinfo("www.sjoa.org", "443", &hints, &servinfo)) != 0) {
+	if ((getaddrinfo("www.sjoa.org", "80", &hints, &servinfo)) != 0) {
 		printf("error\n");
 		freeaddrinfo(servinfo);
 		return 2;
@@ -34,7 +37,22 @@ int main() {
 		freeaddrinfo(servinfo);
 		return 2;
 	}
+	
+	send(s, html_request, strlen(html_request)+1 , 0);
+	s_poll[0].fd = s;
+	s_poll[0].events = POLLIN;
+        status = poll(s_poll, 1, 60000);
 
+	if (status == -1){
+		printf("poll error\n");
+	} else if (status == 0) {
+		printf("Timeout after 1 minute\n");
+	} else {
+		byte_count = recv(s, buf, sizeof buf, 0);
+		printf("recv()'d %d bytes of data in buf\n", byte_count);
+		printf("%s\n", buf);
+	}
+	
 	/*
 	printf("IP addresses for www.sjoa.org:\n\n");
 
